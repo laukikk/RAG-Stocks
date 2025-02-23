@@ -1,0 +1,115 @@
+{
+  "newsArticles": [
+    {
+      "id": "1",
+      "title": "Apple Unveils Revolutionary AI-Powered iPhone",
+      "source": "TechCrunch",
+      "time": "2 hours ago",
+      "relatedStock": "AAPL",
+      "stockPnL": 3.5,
+      "content": "Apple Inc. has announced its latest iPhone model, featuring groundbreaking AI capabilities that promise to revolutionize the smartphone industry. The new device, set to hit markets next month, incorporates advanced machine learning algorithms that can predict user behavior and optimize performance in real-time. Analysts predict this could significantly boost Apple's market share and profitability in the coming quarters.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "2",
+      "title": "Tesla Exceeds Quarterly Delivery Expectations",
+      "source": "Reuters",
+      "time": "4 hours ago",
+      "relatedStock": "TSLA",
+      "stockPnL": 5.2,
+      "content": "Tesla Inc. has surpassed Wall Street's expectations for its quarterly vehicle deliveries, signaling strong demand for electric vehicles despite economic uncertainties. The company reported delivering 310,000 vehicles in the first quarter, beating analysts' estimates of 295,000. This impressive performance has renewed investor confidence in Tesla's growth trajectory and its ability to maintain its leadership position in the EV market.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "3",
+      "title": "Amazon Faces Antitrust Lawsuit in European Union",
+      "source": "Wall Street Journal",
+      "time": "6 hours ago",
+      "relatedStock": "AMZN",
+      "stockPnL": -1.8,
+      "content": "The European Union has filed an antitrust lawsuit against Amazon.com Inc., alleging that the e-commerce giant has been using its dominant market position to stifle competition. The lawsuit claims that Amazon has been unfairly promoting its own products over those of third-party sellers on its platform. If found guilty, Amazon could face significant fines and be forced to change its business practices in the EU.",
+      "recommended": false,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "4",
+      "title": "Microsoft's Cloud Business Continues to Soar",
+      "source": "CNBC",
+      "time": "8 hours ago",
+      "relatedStock": "MSFT",
+      "stockPnL": 2.3,
+      "content": "Microsoft Corporation has reported another quarter of strong growth in its cloud computing division, Azure. The company's cloud revenue increased by 32% year-over-year, exceeding analyst expectations. This continued success in the cloud market has helped Microsoft maintain its position as one of the most valuable companies in the world and has bolstered investor confidence in its long-term growth prospects.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "5",
+      "title": "Google Unveils Quantum Computing Breakthrough",
+      "source": "The Verge",
+      "time": "10 hours ago",
+      "relatedStock": "GOOGL",
+      "stockPnL": 1.5,
+      "content": "Alphabet Inc.'s Google has announced a significant breakthrough in quantum computing technology. The company claims to have achieved quantum supremacy, performing a calculation in 200 seconds that would take the world's most powerful supercomputer 10,000 years to complete. This development could have far-reaching implications for various industries, including cryptography, drug discovery, and financial modeling, potentially giving Google a competitive edge in the race for quantum computing dominance.",
+      "recommended": false,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "6",
+      "title": "Netflix Expands into Gaming Market",
+      "source": "Variety",
+      "time": "12 hours ago",
+      "relatedStock": "NFLX",
+      "stockPnL": 0.8,
+      "content": "Netflix has announced its plans to enter the gaming market, aiming to diversify its entertainment offerings beyond streaming video content. The company plans to develop games based on its popular original series and films, as well as create new intellectual properties. This move is seen as a strategic effort to retain subscribers and compete with other tech giants entering the streaming and gaming spaces.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "7",
+      "title": "Facebook Rebrands as Meta, Focuses on Metaverse",
+      "source": "TechCrunch",
+      "time": "1 day ago",
+      "relatedStock": "FB",
+      "stockPnL": -0.5,
+      "content": "Facebook has officially rebranded itself as Meta, signaling a shift in focus towards the development of the metaverse. CEO Mark Zuckerberg described the metaverse as an immersive, embodied internet where people can have shared experiences across different platforms and devices. This strategic pivot comes as the company faces increasing scrutiny over its social media practices and seeks to shape the future of digital interaction.",
+      "recommended": false,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "8",
+      "title": "NVIDIA's AI Chips Drive Record Quarterly Results",
+      "source": "Reuters",
+      "time": "1 day ago",
+      "relatedStock": "NVDA",
+      "stockPnL": 4.2,
+      "content": "NVIDIA Corporation has reported record-breaking quarterly results, driven by surging demand for its AI chips. The company's data center revenue more than doubled year-over-year, reflecting the growing adoption of AI technologies across various industries. NVIDIA's success in the AI chip market has solidified its position as a key player in the ongoing AI revolution.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "9",
+      "title": "Intel Announces New Chip Manufacturing Plants",
+      "source": "CNBC",
+      "time": "2 days ago",
+      "relatedStock": "INTC",
+      "stockPnL": 1.7,
+      "content": "Intel Corporation has revealed plans to build two new chip manufacturing plants in Arizona, investing $20 billion in the expansion of its production capabilities. This move is part of Intel's strategy to regain its leadership in chip manufacturing and compete with other semiconductor giants. The new facilities are expected to create thousands of jobs and strengthen the U.S. position in the global semiconductor industry.",
+      "recommended": false,
+      "image": "/placeholder.svg?height=200&width=400"
+    },
+    {
+      "id": "10",
+      "title": "AMD's New Processors Outperform Competitors",
+      "source": "AnandTech",
+      "time": "2 days ago",
+      "relatedStock": "AMD",
+      "stockPnL": 3.1,
+      "content": "Advanced Micro Devices (AMD) has launched its latest line of processors, which benchmark tests show outperforming competitors in both performance and energy efficiency. The new chips are expected to strengthen AMD's position in the desktop, laptop, and server markets. This development could potentially lead to increased market share for AMD in the highly competitive semiconductor industry.",
+      "recommended": true,
+      "image": "/placeholder.svg?height=200&width=400"
+    }
+  ]
+}
+

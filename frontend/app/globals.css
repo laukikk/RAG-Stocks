@@ -13,7 +13,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 267 100% 50%;
+    --primary: 267 100% 60%;
+    /* --primary: 267 100% 50%; */
     --primary-foreground: 210 40% 98%;
 
     --secondary: 267 50% 95%;
@@ -48,6 +49,7 @@
     --popover-foreground: 224 20% 4%;
 
     --primary: 267 100% 60%;
+    /* --primary: 267 100% 50%; */
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 250, 94%, 80%;
@@ -61,6 +63,8 @@
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
+
+    --user-chat-box: 267 100% 60%;
 
     --border: 267 0% 10%;
     --input: 267 0% 10%;

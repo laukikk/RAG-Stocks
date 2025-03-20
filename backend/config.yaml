@@ -2,3 +2,7 @@ llm:
   model: "gpt-4o-mini"
   embedded_model: "text-embedding-3-small"
   endpoint: "https://models.inference.ai.azure.com"
+
+langchain:
+  endpoint: "https://api.smith.langchain.com"
+  tracing_v2: 'true'

@@ -1,0 +1,13 @@
+alpaca-py==0.38.0
+fastapi==0.115.8
+langchain==0.3.20
+langchain-community==0.3.19
+langchain-core==0.3.45
+langchain-openai==0.3.8
+langsmith==0.3.10
+openai==1.66.3
+pandas==2.2.3
+psycopg2==2.9.10
+pydantic==2.10.1
+SQLAlchemy==2.0.38
+weaviate-client==4.11.2

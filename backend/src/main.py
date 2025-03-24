@@ -1,61 +1,37 @@
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# Custom imports
-from postgresql.calls import get_user_portfolios
-from postgresql.neon_client import NeonClient
-from rag.calls import get_response
+# Custom package imports
+# from routers.trading_platform_routes import router as trading_platform_router
+# from routers.postgresql_routes import router as postgresql_router
+from routers.rag_routes import router as rag_router
 
-# Initialize Clients
-app = FastAPI()
-neon_client = NeonClient()
-
-# Add CORS middleware to allow requests from the frontend (Next.js)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+app = FastAPI(
+    title="RAG-Stocks API",
+    description="API for RAG-powered stock trading platform",
+    version="0.1.0"
 )
 
-# Pydantic models for request bodies
-class TradeRequest(BaseModel):
-    symbol: str
-    quantity: int
-    side: str
-
-class RagQuery(BaseModel):
-    query: str
-
-@app.get("/")
+@app.get("/", tags=["Health"])
 def root():
     """
     Basic health check endpoint.
     """
-    return {"message": "Welcome to the RAG-Stocks API"}
+    return {"message": "Welcome to the RAG-Stocks API", "status": "healthy"}
 
-@app.get("/portfolios/{user_id}")
-def user_portfolios(user_id: int, db: Session = Depends(neon_client.get_db_session)):
-    """
-    Example endpoint that retrieves user portfolios from Neon Postgres.
-    """
-    try:
-        portfolios = get_user_portfolios(user_id, db)
-        return {"portfolios": portfolios}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# app.include_router(trading_platform_router, prefix="/trading", tags=["trading"])
+# app.include_router(postgresql_router, prefix="/postgresql", tags=["postgresql"])
+app.include_router(rag_router, prefix="/rag", tags=["rag"])
 
-@app.get("/rag/{rag}")
-def rag_endpoint(rag: str):
-    """
-    Endpoint to pass a user prompt to the LangChain RAG pipeline.
-    """
-    try:
-        response = get_response(rag)
-        return {"response": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+# CORS middleware to allow requests from the frontend (Next.js)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Consider using environment variables
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

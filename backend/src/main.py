@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Custom package imports
 # from routers.trading_platform_routes import router as trading_platform_router
-# from routers.postgresql_routes import router as postgresql_router
+from routers.database_routes import database_router
 from routers.rag_routes import router as rag_router
 
 app = FastAPI(
@@ -19,8 +19,9 @@ def root():
     """
     return {"message": "Welcome to the RAG-Stocks API", "status": "healthy"}
 
+# Routers
 # app.include_router(trading_platform_router, prefix="/trading", tags=["trading"])
-# app.include_router(postgresql_router, prefix="/postgresql", tags=["postgresql"])
+app.include_router(database_router)
 app.include_router(rag_router, prefix="/rag", tags=["rag"])
 
 # CORS middleware to allow requests from the frontend (Next.js)

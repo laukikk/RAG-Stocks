@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Custom package imports
-# from routers.trading_platform_routes import router as trading_platform_router
+from routers.trading_routes import trading_platform_router
 from routers.database_routes import database_router
 from routers.rag_routes import router as rag_router
 
@@ -20,7 +20,7 @@ def root():
     return {"message": "Welcome to the RAG-Stocks API", "status": "healthy"}
 
 # Routers
-# app.include_router(trading_platform_router, prefix="/trading", tags=["trading"])
+app.include_router(trading_platform_router)
 app.include_router(database_router)
 app.include_router(rag_router, prefix="/rag", tags=["rag"])
 

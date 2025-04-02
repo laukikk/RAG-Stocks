@@ -1,14 +1,27 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
-from datetime import date, timedelta
+from datetime import date
+from typing import Optional
 
 # Custom imports
 from database.calls import (
     create_user, get_user_by_email, get_user_portfolio_summary,
-    create_account, create_stock, record_stock_daily_price,
-    get_stock_price_history, get_stock_performance,
-    add_portfolio_holding, create_order, record_transaction,
-    create_watchlist, add_watchlist_item
+    create_account, create_asset, record_asset_daily_price,
+    get_asset_price_history, get_asset_performance,
+    add_portfolio_holding, get_portfolio_holdings,
+    create_order, update_order_status, record_transaction,
+    get_orders_by_status, get_active_orders,
+    create_watchlist, add_watchlist_item,
+    create_daily_portfolio_snapshot, create_intraday_portfolio_snapshot,
+    get_account_type_by_code, get_all_account_types,
+    get_order_type_by_code, get_all_order_types,
+    get_order_status_by_code, get_all_order_statuses
+)
+from database.models import (
+    AssetBase, AssetCreate, AccountCreate, 
+    OrderCreate, TransactionCreate, PortfolioHoldingCreate,
+    WatchlistCreate, WatchlistItemCreate, AssetDailyPriceCreate,
+    UserCreate, OrderStatus, TransactionType
 )
 from database.neon_client import NeonClient
 from utils.security import hash_password
@@ -19,23 +32,79 @@ neon_client = NeonClient()
 database_router = APIRouter(prefix="/database")
 
 # =============================================================================
+# Lookup Tables Routers
+# =============================================================================
+lookup_router = APIRouter(prefix="/lookup")
+
+@lookup_router.get("/account-types", summary="Get all account types")
+def get_account_types_route(db: Session = Depends(neon_client.get_db_session)):
+    """
+    Retrieve all available account types.
+    """
+    try:
+        account_types = get_all_account_types(db)
+        return account_types
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@lookup_router.get("/order-types", summary="Get all order types")
+def get_order_types_route(db: Session = Depends(neon_client.get_db_session)):
+    """
+    Retrieve all available order types.
+    """
+    try:
+        order_types = get_all_order_types(db)
+        return order_types
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@lookup_router.get("/order-statuses", summary="Get all order statuses")
+def get_order_statuses_route(db: Session = Depends(neon_client.get_db_session)):
+    """
+    Retrieve all available order statuses.
+    """
+    try:
+        order_statuses = get_all_order_statuses(db)
+        return order_statuses
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
 # Users Router
 # =============================================================================
 users_router = APIRouter(prefix="/users")
 
 @users_router.post("/create", summary="Create a new user")
-def create_user_route(username: str, email: str, password: str, 
-                first_name: str = None, last_name: str = None, 
-                date_of_birth: date = None, phone_number: str = None, 
-                db: Session = Depends(neon_client.get_db_session)):
+def create_user_route(
+    username: str, 
+    email: str, 
+    password: str, 
+    first_name: Optional[str] = None, 
+    last_name: Optional[str] = None, 
+    date_of_birth: Optional[date] = None, 
+    phone_number: Optional[str] = None, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
     Create a new user in the database.
     """
     try:
-        password_hash = hash_password(password)
-        new_user = create_user(
-            db, username, email, password_hash, first_name, last_name, date_of_birth, phone_number
+        # Create Pydantic model from parameters
+        user_data = UserCreate(
+            username=username,
+            email=email,
+            password=hash_password(password),
+            first_name=first_name,
+            last_name=last_name,
+            date_of_birth=date_of_birth,
+            phone_number=phone_number
         )
+        
+        # Pass to database function
+        new_user = create_user(db, user_data)
         return new_user
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -69,72 +138,136 @@ def get_user_portfolio_summary_route(user_id: int, db: Session = Depends(neon_cl
 accounts_router = APIRouter(prefix="/accounts")
 
 @accounts_router.post("/create", summary="Create a new account")
-def create_account_route(user_id: int, account_type: str, currency: str = 'USD', db: Session = Depends(neon_client.get_db_session)):
+def create_account_route(
+    user_id: int, 
+    account_type: str,  # Accept account type code string (e.g., "cash", "margin")
+    currency: str = "USD", 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
     Create a new account for a user.
+    
+    Parameters:
+    - user_id: ID of the user who owns this account
+    - account_type: Type of account (e.g., "cash", "margin", "retirement", "business")
+    - currency: Three-letter currency code (default: "USD")
     """
     try:
-        account = create_account(db, user_id, account_type, currency)
-        return account
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# =============================================================================
-# Stocks Router
-# =============================================================================
-stocks_router = APIRouter(prefix="/stocks")
-
-@stocks_router.post("/create", summary="Create a new stock entry")
-def create_stock_route(symbol: str, company_name: str, exchange: str, 
-                 sector: str = None, industry: str = None, 
-                 db: Session = Depends(neon_client.get_db_session)):
-    """
-    Create a new stock record in the database.
-    """
-    try:
-        stock = create_stock(db, symbol, company_name, exchange, sector, industry)
-        return stock
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@stocks_router.post("/{stock_id}/daily_price", summary="Record stock daily price")
-def record_stock_daily_price_route(stock_id: int, date: date, close_price: float, 
-                             open_price: float = None, high_price: float = None, 
-                             low_price: float = None, volume: int = None,
-                             db: Session = Depends(neon_client.get_db_session)):
-    """
-    Record the daily price for a stock.
-    """
-    try:
-        daily_price = record_stock_daily_price(
-            db, stock_id, date, close_price, open_price, high_price, low_price, volume
+        # First, get the account type ID from the code
+        account_type_obj = get_account_type_by_code(db, account_type)
+        if not account_type_obj:
+            raise HTTPException(status_code=404, detail=f"Account type '{account_type}' not found")
+            
+        # The account number would be generated in the database function
+        account_data = AccountCreate(
+            account_type_id=account_type_obj.id,
+            currency=currency
         )
+        
+        # Pass to database function with user_id
+        account = create_account(db, account_data, user_id)
+        return account
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Assets Router
+# =============================================================================
+assets_router = APIRouter(prefix="/assets")
+
+@assets_router.post("/create", summary="Create a new asset entry")
+def create_asset_route(
+    symbol: str, 
+    company_name: str, 
+    exchange: str, 
+    sector: Optional[str] = None, 
+    industry: Optional[str] = None, 
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Create a new asset record in the database.
+    """
+    try:
+        # Create Pydantic model from parameters
+        asset_data = AssetCreate(
+            symbol=symbol,
+            company_name=company_name,
+            exchange=exchange,
+            sector=sector,
+            industry=industry
+        )
+        
+        # Pass to database function
+        asset = create_asset(db, asset_data)
+        return asset
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@assets_router.post("/{asset_id}/daily_price", summary="Record asset daily price")
+def record_asset_daily_price_route(
+    asset_id: int, 
+    date: date, 
+    close_price: float, 
+    open_price: Optional[float] = None, 
+    high_price: Optional[float] = None, 
+    low_price: Optional[float] = None, 
+    volume: Optional[int] = None,
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Record the daily price for an asset.
+    """
+    try:
+        # Create Pydantic model from parameters
+        price_data = AssetDailyPriceCreate(
+            asset_id=asset_id,
+            date=date,
+            close_price=close_price,
+            open_price=open_price,
+            high_price=high_price,
+            low_price=low_price,
+            volume=volume
+        )
+        
+        # Pass to database function
+        daily_price = record_asset_daily_price(db, price_data)
         return daily_price
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@stocks_router.get("/{stock_id}/price_history", summary="Get stock price history")
-def get_stock_price_history_route(stock_id: int, start_date: date = None, end_date: date = None, 
-                            db: Session = Depends(neon_client.get_db_session)):
+@assets_router.get("/{asset_id}/price_history", summary="Get asset price history")
+def get_asset_price_history_route(
+    asset_id: int, 
+    start_date: Optional[date] = None, 
+    end_date: Optional[date] = None, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
-    Retrieve the historical price data for a given stock.
+    Retrieve the historical price data for a given asset.
     """
-    history = get_stock_price_history(db, stock_id, start_date, end_date)
+    history = get_asset_price_history(db, asset_id, start_date, end_date)
     if history:
         return history
     raise HTTPException(status_code=404, detail="Price history not found")
 
 
-@stocks_router.get("/{stock_id}/performance", summary="Get stock performance")
-def get_stock_performance_route(stock_id: int, days: int = 30, 
-                          db: Session = Depends(neon_client.get_db_session)):
+@assets_router.get("/{asset_id}/performance", summary="Get asset performance")
+def get_asset_performance_route(
+    asset_id: int, 
+    days: int = 30, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
-    Get performance metrics for a stock over a specified number of days.
+    Get performance metrics for an asset over a specified number of days.
     """
-    performance = get_stock_performance(db, stock_id, days)
+    performance = get_asset_performance(db, asset_id, days)
     if performance:
         return performance
     raise HTTPException(status_code=404, detail="Performance data not found")
@@ -146,14 +279,78 @@ def get_stock_performance_route(stock_id: int, days: int = 30,
 portfolio_router = APIRouter(prefix="/portfolio")
 
 @portfolio_router.post("/holding/add", summary="Add portfolio holding")
-def add_portfolio_holding_route(account_id: int, stock_id: int, quantity: int, average_price: float, 
-                          db: Session = Depends(neon_client.get_db_session)):
+def add_portfolio_holding_route(
+    account_id: int, 
+    asset_id: int, 
+    quantity: int, 
+    average_purchase_price: float, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
-    Add a stock holding to a user's portfolio.
+    Add an asset holding to a user's portfolio.
     """
     try:
-        holding = add_portfolio_holding(db, account_id, stock_id, quantity, average_price)
+        # Create Pydantic model from parameters
+        holding_data = PortfolioHoldingCreate(
+            account_id=account_id,
+            asset_id=asset_id,
+            quantity=quantity,
+            average_purchase_price=average_purchase_price
+        )
+        
+        # Pass to database function
+        holding = add_portfolio_holding(db, holding_data)
         return holding
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@portfolio_router.get("/{account_id}/holdings", summary="Get portfolio holdings")
+def get_portfolio_holdings_route(account_id: int, db: Session = Depends(neon_client.get_db_session)):
+    """
+    Retrieve all asset holdings for a given account.
+    """
+    holdings = get_portfolio_holdings(db, account_id)
+    if holdings:
+        return holdings
+    raise HTTPException(status_code=404, detail="Holdings not found")
+
+
+@portfolio_router.post("/{account_id}/daily_snapshot", summary="Create daily portfolio snapshot")
+def create_daily_portfolio_snapshot_route(
+    account_id: int, 
+    snapshot_date: date,
+    portfolio_value: float, 
+    cash_balance: Optional[float] = None,
+    unrealized_pnl: Optional[float] = None, 
+    unrealized_pnl_percent: Optional[float] = None,
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Create a daily snapshot of a portfolio's value and performance.
+    """
+    try:
+        snapshot = create_daily_portfolio_snapshot(
+            db, account_id, snapshot_date, portfolio_value, 
+            cash_balance, unrealized_pnl, unrealized_pnl_percent
+        )
+        return snapshot
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@portfolio_router.post("/{account_id}/intraday_snapshot", summary="Create intraday portfolio snapshot")
+def create_intraday_portfolio_snapshot_route(
+    account_id: int,
+    portfolio_value: float,
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Create an intraday snapshot of a portfolio's current value.
+    """
+    try:
+        snapshot = create_intraday_portfolio_snapshot(db, account_id, portfolio_value)
+        return snapshot
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -164,17 +361,82 @@ def add_portfolio_holding_route(account_id: int, stock_id: int, quantity: int, a
 orders_router = APIRouter(prefix="/orders")
 
 @orders_router.post("/create", summary="Create a new order")
-def create_order_route(account_id: int, stock_id: int, order_type: str, transaction_type: str, 
-                 quantity: int, price: float = None, stop_price: float = None, 
-                 db: Session = Depends(neon_client.get_db_session)):
+def create_order_route(
+    account_id: int, 
+    asset_id: int, 
+    order_type_id: int, 
+    transaction_type: TransactionType, 
+    quantity: int, 
+    price: Optional[float] = None, 
+    stop_price: Optional[float] = None, 
+    notes: Optional[str] = None,
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
-    Create a new order for buying or selling a stock.
+    Create a new order for buying or selling an asset.
     """
     try:
-        order = create_order(
-            db, account_id, stock_id, order_type, transaction_type, quantity, price, stop_price
+        # Create Pydantic model from parameters
+        order_data = OrderCreate(
+            account_id=account_id,
+            asset_id=asset_id,
+            order_type_id=order_type_id,
+            transaction_type=transaction_type,
+            quantity=quantity,
+            price=price,
+            stop_price=stop_price,
+            notes=notes
         )
+        
+        # Pass to database function
+        order = create_order(db, order_data)
         return order
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@orders_router.put("/{order_id}/status", summary="Update order status")
+def update_order_status_route(
+    order_id: int, 
+    status_code: str, 
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Update the status of an existing order.
+    """
+    try:
+        updated_order = update_order_status(db, order_id, status_code)
+        return updated_order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@orders_router.get("/{account_id}", summary="Get orders for an account")
+def get_orders_route(
+    account_id: int, 
+    status: Optional[str] = OrderStatus.ALL, 
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Get all orders for an account, optionally filtered by status.
+    """
+    try:
+        orders = get_orders_by_status(db, account_id, status)
+        return orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@orders_router.get("/{account_id}/active", summary="Get active orders")
+def get_active_orders_route(account_id: int, db: Session = Depends(neon_client.get_db_session)):
+    """
+    Get all currently active/open orders for an account.
+    """
+    try:
+        orders = get_active_orders(db, account_id)
+        return orders
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -185,16 +447,39 @@ def create_order_route(account_id: int, stock_id: int, order_type: str, transact
 transactions_router = APIRouter(prefix="/transactions")
 
 @transactions_router.post("/record", summary="Record a transaction")
-def record_transaction_route(account_id: int, stock_id: int, transaction_type: str, 
-                       quantity: int, price: float, order_id: int = None, commission: float = 0.0, 
-                       db: Session = Depends(neon_client.get_db_session)):
+def record_transaction_route(
+    account_id: int, 
+    asset_id: int, 
+    transaction_type: TransactionType, 
+    quantity: int, 
+    price: float, 
+    order_id: Optional[int] = None, 
+    commission: float = 0.0, 
+    total_amount: Optional[float] = None,
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
     Record a new transaction in the system.
     """
     try:
-        transaction = record_transaction(
-            db, account_id, stock_id, transaction_type, quantity, price, order_id, commission
+        # Calculate total_amount if not provided
+        if total_amount is None:
+            total_amount = quantity * price + commission
+            
+        # Create Pydantic model from parameters
+        transaction_data = TransactionCreate(
+            account_id=account_id,
+            asset_id=asset_id,
+            transaction_type=transaction_type,
+            quantity=quantity,
+            price=price,
+            order_id=order_id,
+            commission=commission,
+            total_amount=total_amount
         )
+        
+        # Pass to database function
+        transaction = record_transaction(db, transaction_data)
         return transaction
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -206,33 +491,50 @@ def record_transaction_route(account_id: int, stock_id: int, transaction_type: s
 watchlists_router = APIRouter(prefix="/watchlists")
 
 @watchlists_router.post("/create", summary="Create a new watchlist")
-def create_watchlist_route(user_id: int, name: str, db: Session = Depends(neon_client.get_db_session)):
+def create_watchlist_route(
+    user_id: int, 
+    name: str, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
     Create a new watchlist for a user.
     """
     try:
-        watchlist = create_watchlist(db, user_id, name)
+        # Create Pydantic model from parameters
+        watchlist_data = WatchlistCreate(name=name)
+        
+        # Pass to database function with user_id
+        watchlist = create_watchlist(db, watchlist_data, user_id)
         return watchlist
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@watchlists_router.post("/item/add", summary="Add an item to a watchlist")
-def add_watchlist_item_route(watchlist_id: int, stock_id: int, db: Session = Depends(neon_client.get_db_session)):
+@watchlists_router.post("/{watchlist_id}/item/add", summary="Add an item to a watchlist")
+def add_watchlist_item_route(
+    watchlist_id: int, 
+    asset_id: int, 
+    db: Session = Depends(neon_client.get_db_session)
+):
     """
-    Add a stock to an existing watchlist.
+    Add an asset to an existing watchlist.
     """
     try:
-        item = add_watchlist_item(db, watchlist_id, stock_id)
+        # Create Pydantic model from parameters
+        item_data = WatchlistItemCreate(asset_id=asset_id)
+        
+        # Pass to database function with watchlist_id
+        item = add_watchlist_item(db, item_data, watchlist_id)
         return item
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # add routers to parent router
+database_router.include_router(lookup_router, tags=["Database - Lookups"])
 database_router.include_router(users_router, tags=["Database - Users"])
 database_router.include_router(accounts_router, tags=["Database - Accounts"])
-database_router.include_router(stocks_router, tags=["Database - Stocks"])
+database_router.include_router(assets_router, tags=["Database - Assets"])
 database_router.include_router(portfolio_router, tags=["Database - Portfolio"])
 database_router.include_router(orders_router, tags=["Database - Orders"])
 database_router.include_router(transactions_router, tags=["Database - Transactions"])

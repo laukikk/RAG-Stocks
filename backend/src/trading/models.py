@@ -6,18 +6,22 @@ from enum import Enum
 
 from alpaca.data.timeframe import TimeFrame
 
+# Import custom modules
+from database.models import (
+    AssetBase,
+)
+
 # Enums
 class AlpacaOrderStatus(str, Enum):
+    OPEN = 'open'
+    CLOSED = 'closed'
+    ALL = 'all'
     NEW = 'new'
-    PARTIALLY_FILLED = 'partially_filled'
+    ACCEPTED = 'accepted'
     FILLED = 'filled'
-    DONE_FOR_DAY = 'done_for_day'
-    CANCELED = 'canceled'
     EXPIRED = 'expired'
+    CANCELED = 'canceled'
     REPLACED = 'replaced'
-    PENDING_CANCEL = 'pending_cancel'
-    PENDING_REPLACE = 'pending_replace'
-    PENDING_NEW = 'pending_new'
 
 class AlpacaOrderSide(str, Enum):
     BUY = 'buy'
@@ -97,7 +101,7 @@ class AlpacaOrderRequest(BaseModel):
     extended_hours: Optional[bool] = False
 
 class AlpacaOrder(BaseModel):
-    id: str
+    id: UUID
     client_order_id: Optional[str]
     created_at: datetime
     updated_at: datetime
@@ -176,6 +180,19 @@ class AlpacaAsset(BaseModel):
     
     class Config:
         extra = "ignore"
+        
+    def to_stockbase(self) -> AssetBase:
+        """
+        Convert this AlpacaAsset instance to a StockBase instance.
+        
+        Returns:
+            A StockBase instance with data from this AlpacaAsset
+        """
+        return AssetBase(
+            symbol=self.symbol,
+            company_name=self.name,
+            exchange=self.exchange.value,
+        )
 
 class AlpacaMarketCalendar(BaseModel):
     date: str

@@ -96,7 +96,7 @@ def place_order(client: TradingClient, order_details: AlpacaOrderRequest):
     return AlpacaOrder(**order.__dict__)
 
 def get_orders(client: TradingClient, 
-               status: Optional[List[AlpacaOrderStatus]] = None, 
+               status: Optional[AlpacaOrderStatus] = None, 
                limit: int = 50, 
                after: Optional[datetime] = None, 
                until: Optional[datetime] = None):
@@ -111,7 +111,7 @@ def get_orders(client: TradingClient,
     :return: List of AlpacaOrder models
     """
     order_request = GetOrdersRequest(
-        status=status,
+        status=status.value,
         limit=limit,
         after=after,
         until=until

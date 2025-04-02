@@ -83,7 +83,7 @@ def place_order_route(
 
 @orders_router.get("/", summary="Get list of orders")
 def get_orders_route(
-    status: Optional[List[AlpacaOrderStatus]] = Query(None),
+    status: Optional[AlpacaOrderStatus] = Query(None),
     limit: int = Query(50),
     after: Optional[datetime] = Query(None),
     until: Optional[datetime] = Query(None),

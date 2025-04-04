@@ -1,15 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
 
-# Import Alpaca client for dependency injection
 from trading.alpaca_client import AlpacaClient
 
-# Import Alpaca enums
+from alpaca.trading.client import TradingClient
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, OrderStatus
 from alpaca.data.timeframe import TimeFrame, TimeFrameUnit
-
-# Import Alpaca request models
 from alpaca.trading.requests import (
     MarketOrderRequest,
     LimitOrderRequest,
@@ -35,7 +32,7 @@ trading_platform_router = APIRouter(prefix="/trading")
 account_router = APIRouter(prefix="/account")
 
 @account_router.get("/details", summary="Get Account Details")
-def get_account_details_route(client=Depends(alpaca_client.trading_client)):
+def get_account_details_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve detailed information about the Alpaca trading account.
     """
@@ -51,7 +48,7 @@ def get_account_details_route(client=Depends(alpaca_client.trading_client)):
 positions_router = APIRouter(prefix="/positions")
 
 @positions_router.get("/", summary="Get All Positions")
-def get_all_positions_route(client=Depends(alpaca_client.trading_client)):
+def get_all_positions_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve all open positions in the account.
     """
@@ -62,7 +59,7 @@ def get_all_positions_route(client=Depends(alpaca_client.trading_client)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @positions_router.get("/{symbol}", summary="Get Open Position")
-def get_open_position_route(symbol: str, client=Depends(alpaca_client.trading_client)):
+def get_open_position_route(symbol: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve the open position for a specific stock symbol.
     """
@@ -75,7 +72,7 @@ def get_open_position_route(symbol: str, client=Depends(alpaca_client.trading_cl
         raise HTTPException(status_code=500, detail=str(e))
 
 @positions_router.post("/close-all", summary="Close All Positions")
-def close_all_positions_route(client=Depends(alpaca_client.trading_client)):
+def close_all_positions_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Close all open positions in the account.
     """
@@ -87,7 +84,7 @@ def close_all_positions_route(client=Depends(alpaca_client.trading_client)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @positions_router.delete("/{symbol}/close", summary="Close A Position")
-def close_position_route(symbol: str, client=Depends(alpaca_client.trading_client)):
+def close_position_route(symbol: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Close the position for a specific stock symbol.
     """
@@ -100,7 +97,7 @@ def close_position_route(symbol: str, client=Depends(alpaca_client.trading_clien
         raise HTTPException(status_code=500, detail=str(e))
 
 @positions_router.post("/{symbol}/exercise", summary="Exercise An Option Contract")
-def exercise_option_contract_route(symbol: str, client=Depends(alpaca_client.trading_client)):
+def exercise_option_contract_route(symbol: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Exercise an option contract for a given stock symbol.
     """
@@ -125,7 +122,7 @@ def create_order_route(
     time_in_force: TimeInForce = TimeInForce.DAY,
     limit_price: Optional[float] = None,
     stop_price: Optional[float] = None,
-    client=Depends(alpaca_client.trading_client)
+    client: TradingClient = Depends(alpaca_client.trading_client)
 ):
     """
     Place a new order with the specified parameters using the appropriate request object.
@@ -193,7 +190,7 @@ def get_orders_route(
     limit: int = Query(50),
     after: Optional[datetime] = Query(None),
     until: Optional[datetime] = Query(None),
-    client=Depends(alpaca_client.trading_client)
+    client: TradingClient = Depends(alpaca_client.trading_client)
 ):
     """
     Retrieve a list of orders with optional filtering using a GetOrdersRequest.
@@ -215,7 +212,7 @@ def get_orders_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 @orders_router.get("/{order_id}", summary="Get Order By Id")
-def get_order_by_id_route(order_id: str, client=Depends(alpaca_client.trading_client)):
+def get_order_by_id_route(order_id: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve order details by order ID using a GetOrderByIdRequest.
     """
@@ -238,7 +235,7 @@ def replace_order_route(
     time_in_force: Optional[TimeInForce] = None,
     limit_price: Optional[float] = None,
     stop_price: Optional[float] = None,
-    client=Depends(alpaca_client.trading_client)
+    client: TradingClient = Depends(alpaca_client.trading_client)
 ):
     """
     Replace an existing order by order ID using a ReplaceOrderRequest.
@@ -258,7 +255,7 @@ def replace_order_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 @orders_router.delete("/", summary="Cancel All Orders")
-def cancel_all_orders_route(client=Depends(alpaca_client.trading_client)):
+def cancel_all_orders_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Cancel all open orders.
     """
@@ -269,7 +266,7 @@ def cancel_all_orders_route(client=Depends(alpaca_client.trading_client)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @orders_router.delete("/{order_id}", summary="Cancel Order By Id")
-def cancel_order_by_id_route(order_id: str, client=Depends(alpaca_client.trading_client)):
+def cancel_order_by_id_route(order_id: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Cancel a specific order by order ID.
     """
@@ -285,7 +282,7 @@ def cancel_order_by_id_route(order_id: str, client=Depends(alpaca_client.trading
 assets_router = APIRouter(prefix="/assets")
 
 @assets_router.get("/", summary="Get All Assets")
-def get_assets_route(client=Depends(alpaca_client.trading_client)):
+def get_assets_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve a list of all assets using a GetAssetsRequest.
     """
@@ -302,7 +299,7 @@ def get_assets_route(client=Depends(alpaca_client.trading_client)):
         raise HTTPException(status_code=500, detail=str(e))
     
 @assets_router.get("/{symbol}", summary="Get Asset")
-def get_asset_route(symbol: str, client=Depends(alpaca_client.trading_client)):
+def get_asset_route(symbol: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve details for a specific asset by symbol.
     """
@@ -318,7 +315,7 @@ def get_asset_route(symbol: str, client=Depends(alpaca_client.trading_client)):
 contracts_router = APIRouter(prefix="/contracts")
 
 @contracts_router.get("/", summary="Get Option Contracts")
-def get_option_contracts_route(client=Depends(alpaca_client.trading_client)):
+def get_option_contracts_route(client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve a list of option contracts.
     """
@@ -330,7 +327,7 @@ def get_option_contracts_route(client=Depends(alpaca_client.trading_client)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @contracts_router.get("/{contract_id}", summary="Get Option Contract")
-def get_option_contract_route(contract_id: str, client=Depends(alpaca_client.trading_client)):
+def get_option_contract_route(contract_id: str, client: TradingClient = Depends(alpaca_client.trading_client)):
     """
     Retrieve details for a specific option contract.
     """
@@ -343,42 +340,6 @@ def get_option_contract_route(contract_id: str, client=Depends(alpaca_client.tra
         raise HTTPException(status_code=500, detail=str(e))
 
 # =============================================================================
-# Market Data Router
-# =============================================================================
-market_data_router = APIRouter(prefix="/market-data")
-
-@market_data_router.get("/quote/{symbol}", summary="Get Latest Quote")
-def get_latest_quote_route(symbol: str, client=Depends(alpaca_client.stock_client)):
-    """
-    Retrieve the latest quote for a given stock symbol.
-    """
-    try:
-        quote = client.get_latest_quote(symbol)
-        return quote
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@market_data_router.get("/historical-bars/{symbol}", summary="Get Historical Price Bars")
-def get_historical_bars_route(
-    symbol: str, 
-    timeframe: str = "Day",
-    start: Optional[datetime] = Query(None), 
-    end: Optional[datetime] = Query(None),
-    client=Depends(alpaca_client.stock_client)
-):
-    """
-    Retrieve historical price bars for a given stock symbol.
-    """
-    # Convert timeframe string to enum (using TimeFrameUnit)
-    timeframe_enum = TimeFrame(TimeFrameUnit[timeframe.upper()])
-    
-    try:
-        bars = client.get_historical_bars(symbol, timeframe_enum, start, end)
-        return bars
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# =============================================================================
 # Include Routers in Parent Router
 # =============================================================================
 trading_platform_router.include_router(account_router, tags=["Trading Platform - Account"])
@@ -386,4 +347,3 @@ trading_platform_router.include_router(orders_router, tags=["Trading Platform - 
 trading_platform_router.include_router(positions_router, tags=["Trading Platform - Positions"])
 trading_platform_router.include_router(assets_router, tags=["Trading Platform - Assets"])
 trading_platform_router.include_router(contracts_router, tags=["Trading Platform - Contracts"])
-trading_platform_router.include_router(market_data_router, tags=["Trading Platform - Market Data"])

@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Custom package imports
 from routers.trading_routes import trading_platform_router
+from routers.stock_data_routes import stock_data_router
+from routers.crypto_data_routes import crypto_data_router
 from routers.database_routes import database_router
 from routers.rag_routes import router as rag_router
 
@@ -21,6 +23,8 @@ def root():
 
 # Routers
 app.include_router(trading_platform_router)
+app.include_router(stock_data_router)
+app.include_router(crypto_data_router)
 app.include_router(database_router)
 app.include_router(rag_router, prefix="/rag", tags=["rag"])
 

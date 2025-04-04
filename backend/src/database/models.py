@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, DECIMAL, BigInteger, UUID
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, DECIMAL, BigInteger, UUID, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from pydantic import BaseModel, Field, EmailStr
@@ -122,9 +122,8 @@ class Account(Base):
     daily_snapshots = relationship("DailyPortfolioSnapshot", back_populates="account")
     intraday_snapshots = relationship("IntradayPortfolioSnapshot", back_populates="account")
 
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('user_id', 'account_type_id')},
+        UniqueConstraint('user_id', 'account_type_id', name='uix_account_user_type'),
     )
 
 class Asset(Base):
@@ -164,9 +163,8 @@ class AssetDailyPrice(Base):
     # Relationships
     asset = relationship("Asset", back_populates="daily_prices")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('asset_id', 'date')},
+        UniqueConstraint('asset_id', 'date', name='uix_asset_daily_price'),
     )
 
 class PortfolioHolding(Base):
@@ -183,9 +181,8 @@ class PortfolioHolding(Base):
     account = relationship("Account", back_populates="holdings")
     asset = relationship("Asset", back_populates="holdings")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('account_id', 'asset_id')},
+        UniqueConstraint('account_id', 'asset_id', name='uix_portfolio_holding'),
     )
 
 class DailyPortfolioSnapshot(Base):
@@ -202,9 +199,8 @@ class DailyPortfolioSnapshot(Base):
     # Relationships
     account = relationship("Account", back_populates="daily_snapshots")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('account_id', 'snapshot_date')},
+        UniqueConstraint('account_id', 'snapshot_date', name='uix_daily_snapshot'),
     )
 
 class IntradayPortfolioSnapshot(Base):
@@ -218,9 +214,8 @@ class IntradayPortfolioSnapshot(Base):
     # Relationships
     account = relationship("Account", back_populates="intraday_snapshots")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('account_id', 'record_timestamp')},
+        UniqueConstraint('account_id', 'record_timestamp', name='uix_intraday_snapshot'),
     )
 
 class Order(Base):
@@ -280,9 +275,8 @@ class Watchlist(Base):
     user = relationship("User", back_populates="watchlists")
     watchlist_items = relationship("WatchlistItem", back_populates="watchlist")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('user_id', 'name')},
+        UniqueConstraint('user_id', 'name', name='uix_watchlist'),
     )
 
 class WatchlistItem(Base):
@@ -297,9 +291,8 @@ class WatchlistItem(Base):
     watchlist = relationship("Watchlist", back_populates="watchlist_items")
     asset = relationship("Asset", back_populates="watchlist_items")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('watchlist_id', 'asset_id')},
+        UniqueConstraint('watchlist_id', 'asset_id', name='uix_watchlist_item'),
     )
 
 class FinancialStatement(Base):
@@ -327,9 +320,8 @@ class FinancialStatement(Base):
     # Relationships
     asset = relationship("Asset", back_populates="financial_statements")
     
-    # Added unique constraint
     __table_args__ = (
-        {'unique_constraint': ('asset_id', 'statement_type', 'fiscal_year', 'fiscal_quarter')},
+        UniqueConstraint('asset_id', 'statement_type', 'fiscal_year', 'fiscal_quarter', name='uix_financial_statement'),
     )
 
 class Dividend(Base):

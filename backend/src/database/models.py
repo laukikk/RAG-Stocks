@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, DECIMAL, BigInteger
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, Date, Enum, DECIMAL, BigInteger, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import TIMESTAMP
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List, Literal
 from datetime import datetime, date, timezone
 from enum import Enum as PyEnum
+from uuid import UUID as PyUUID
 from .neon_client import Base
 
 # ENUMs that remain as enum types
@@ -110,6 +111,7 @@ class Account(Base):
     margin_available = Column(DECIMAL(15, 2), default=0.00)
     created_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     status = Column(Enum(AccountStatus, values_callable=lambda enum: [e.value for e in enum]), default=AccountStatus.ACTIVE)
+    external_account_id = Column(UUID, index=True)
     
     # Relationships
     user = relationship("User", back_populates="accounts")
@@ -119,6 +121,11 @@ class Account(Base):
     transactions = relationship("Transaction", back_populates="account")
     daily_snapshots = relationship("DailyPortfolioSnapshot", back_populates="account")
     intraday_snapshots = relationship("IntradayPortfolioSnapshot", back_populates="account")
+
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('user_id', 'account_type_id')},
+    )
 
 class Asset(Base):
     __tablename__ = "assets"
@@ -131,6 +138,7 @@ class Asset(Base):
     industry = Column(String(50))
     is_active = Column(Boolean, default=True)
     added_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
+    external_asset_id = Column(UUID, index=True)
     
     # Relationships
     holdings = relationship("PortfolioHolding", back_populates="asset")
@@ -155,6 +163,11 @@ class AssetDailyPrice(Base):
     
     # Relationships
     asset = relationship("Asset", back_populates="daily_prices")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('asset_id', 'date')},
+    )
 
 class PortfolioHolding(Base):
     __tablename__ = "portfolio_holdings"
@@ -164,10 +177,16 @@ class PortfolioHolding(Base):
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False)
     average_purchase_price = Column(DECIMAL(15, 2), nullable=False)
+    external_position_id = Column(UUID, index=True)
     
     # Relationships
     account = relationship("Account", back_populates="holdings")
     asset = relationship("Asset", back_populates="holdings")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('account_id', 'asset_id')},
+    )
 
 class DailyPortfolioSnapshot(Base):
     __tablename__ = "daily_portfolio_snapshots"
@@ -182,6 +201,11 @@ class DailyPortfolioSnapshot(Base):
     
     # Relationships
     account = relationship("Account", back_populates="daily_snapshots")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('account_id', 'snapshot_date')},
+    )
 
 class IntradayPortfolioSnapshot(Base):
     __tablename__ = "intraday_portfolio_snapshots"
@@ -193,6 +217,11 @@ class IntradayPortfolioSnapshot(Base):
     
     # Relationships
     account = relationship("Account", back_populates="intraday_snapshots")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('account_id', 'record_timestamp')},
+    )
 
 class Order(Base):
     __tablename__ = "orders"
@@ -206,11 +235,12 @@ class Order(Base):
     filled_quantity = Column(Integer)
     price = Column(DECIMAL(15, 2))
     stop_price = Column(DECIMAL(15, 2))
-    order_status_id = Column(Integer, ForeignKey("order_statuses.id"), nullable=False, default=2)  # Default to 'new' (id=2)
+    order_status_id = Column(Integer, ForeignKey("order_statuses.id"), nullable=False, default=1)  # Updated default to 1 (open)
     placed_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     executed_at = Column(TIMESTAMP(timezone=True))
     expires_at = Column(TIMESTAMP(timezone=True))
     notes = Column(Text)
+    external_order_id = Column(UUID, index=True)
     
     # Relationships
     account = relationship("Account", back_populates="orders")
@@ -249,6 +279,11 @@ class Watchlist(Base):
     # Relationships
     user = relationship("User", back_populates="watchlists")
     watchlist_items = relationship("WatchlistItem", back_populates="watchlist")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('user_id', 'name')},
+    )
 
 class WatchlistItem(Base):
     __tablename__ = "watchlist_items"
@@ -261,6 +296,11 @@ class WatchlistItem(Base):
     # Relationships
     watchlist = relationship("Watchlist", back_populates="watchlist_items")
     asset = relationship("Asset", back_populates="watchlist_items")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('watchlist_id', 'asset_id')},
+    )
 
 class FinancialStatement(Base):
     __tablename__ = "financial_statements"
@@ -269,7 +309,8 @@ class FinancialStatement(Base):
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
     statement_type = Column(Enum(StatementType, values_callable=lambda enum: [e.value for e in enum]), nullable=False)
     fiscal_year = Column(Integer, nullable=False)
-    fiscal_quarter = Column(Integer, nullable=True)
+    fiscal_quarter = Column(Integer, nullable=True, 
+                           info={'check': "fiscal_quarter BETWEEN 1 AND 4"})  # Added check constraint
     revenue = Column(DECIMAL(20, 2))
     gross_profit = Column(DECIMAL(20, 2))
     operating_income = Column(DECIMAL(20, 2))
@@ -285,6 +326,11 @@ class FinancialStatement(Base):
     
     # Relationships
     asset = relationship("Asset", back_populates="financial_statements")
+    
+    # Added unique constraint
+    __table_args__ = (
+        {'unique_constraint': ('asset_id', 'statement_type', 'fiscal_year', 'fiscal_quarter')},
+    )
 
 class Dividend(Base):
     __tablename__ = "dividends"
@@ -374,6 +420,7 @@ class AccountBase(BaseModel):
     account_type_id: int
     account_number: Optional[str] = None
     currency: str = "USD"
+    external_account_id: Optional[PyUUID] = None
 
 class AccountCreate(AccountBase):
     pass
@@ -396,6 +443,7 @@ class AssetBase(BaseModel):
     exchange: str
     sector: Optional[str] = None
     industry: Optional[str] = None
+    external_asset_id: Optional[PyUUID] = None
     
     def to_asset(self) -> Asset:
         return Asset(
@@ -403,7 +451,8 @@ class AssetBase(BaseModel):
             company_name=self.company_name,
             exchange=self.exchange,
             sector=self.sector,
-            industry=self.industry
+            industry=self.industry,
+            external_asset_id=self.external_asset_id
         )
 
 class AssetCreate(AssetBase):
@@ -440,6 +489,7 @@ class PortfolioHoldingBase(BaseModel):
     asset_id: int
     quantity: int
     average_purchase_price: float
+    external_position_id: Optional[PyUUID] = None
 
 class PortfolioHoldingCreate(PortfolioHoldingBase):
     pass
@@ -460,6 +510,7 @@ class OrderBase(BaseModel):
     price: Optional[float] = None
     stop_price: Optional[float] = None
     notes: Optional[str] = None
+    external_order_id: Optional[PyUUID] = None
 
 class OrderCreate(OrderBase):
     pass
@@ -531,3 +582,48 @@ class WatchlistResponse(WatchlistBase):
 
 class UserWatchlistsResponse(BaseModel):
     watchlists: List[WatchlistResponse]
+
+class FinancialStatementBase(BaseModel):
+    asset_id: int
+    statement_type: StatementType
+    fiscal_year: int
+    fiscal_quarter: Optional[int] = None
+    report_date: date
+    
+    revenue: Optional[float] = None
+    gross_profit: Optional[float] = None
+    operating_income: Optional[float] = None
+    net_income: Optional[float] = None
+    eps: Optional[float] = None
+    total_assets: Optional[float] = None
+    total_liabilities: Optional[float] = None
+    total_equity: Optional[float] = None
+    operating_cash_flow: Optional[float] = None
+    investing_cash_flow: Optional[float] = None
+    financing_cash_flow: Optional[float] = None
+
+class FinancialStatementCreate(FinancialStatementBase):
+    pass
+
+class FinancialStatementResponse(FinancialStatementBase):
+    id: int
+    asset: AssetResponse
+    
+    class Config:
+        from_attributes = True
+
+class DividendBase(BaseModel):
+    asset_id: int
+    ex_date: date
+    payment_date: Optional[date] = None
+    amount_per_share: float
+
+class DividendCreate(DividendBase):
+    pass
+
+class DividendResponse(DividendBase):
+    id: int
+    asset: AssetResponse
+    
+    class Config:
+        from_attributes = True

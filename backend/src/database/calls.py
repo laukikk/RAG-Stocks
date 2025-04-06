@@ -13,7 +13,7 @@ from .models import (
     AccountType, OrderType, OrderStatusLookup, OrderStatus,
     # Pydantic models
     UserCreate, AccountCreate, AssetCreate, AssetBase,
-    PortfolioHoldingCreate, OrderCreate, TransactionCreate,
+    PortfolioHoldingCreate, OrderCreate, OrderUpdate, TransactionCreate,
     AssetDailyPriceCreate, WatchlistCreate, WatchlistItemCreate
 )
 from utils.security import generate_account_number
@@ -67,6 +67,18 @@ def get_all_order_statuses(db: Session) -> List[OrderStatusLookup]:
     """Get all available order statuses."""
     return db.query(OrderStatusLookup).order_by(OrderStatusLookup.display_order).all()
 
+
+# ===============================================================================
+# Getting models by external ids
+# ===============================================================================
+
+def get_account_by_external_id(db: Session, external_id: str) -> Optional[Account]:
+    """Get an account by its external ID."""
+    return db.query(Account).filter(Account.external_account_id == external_id).first()
+
+def get_order_by_external_id(db: Session, external_id: str) -> Optional[Order]:
+    """Get an order by its external ID."""
+    return db.query(Order).filter(Order.external_order_id == external_id).first()
 
 # ===============================================================================
 # User operations
@@ -268,6 +280,65 @@ def get_portfolio_holdings(db: Session, account_id: int) -> List[PortfolioHoldin
         raise e
 
 
+def close_portfolio_holding(db: Session, holding_data: PortfolioHoldingCreate) -> None:
+    """
+    Close a portfolio holding by removing it from the database.
+    
+    Args:
+        db: Database session
+        account_id: ID of the account that holds the asset
+        asset_id: ID of the asset to be removed
+        
+    Returns:
+        None
+    """
+    try:
+        holding = db.query(PortfolioHolding).filter(
+            PortfolioHolding.account_id == holding_data.account_id,
+            PortfolioHolding.asset_id == holding_data.asset_id
+        ).first()
+        
+        if holding:
+            db.delete(holding)
+            db.commit()
+        else:
+            raise ValueError(f"Holding not found for account {holding_data.account_id} and asset {holding_data.asset_id}")
+    except Exception as e:
+        db.rollback()
+        raise e
+    
+    
+def update_portfolio_holding(db: Session, holding_data: PortfolioHoldingCreate) -> PortfolioHolding:
+    """
+    Update an existing portfolio holding.
+    
+    Args:
+        db: Database session
+        holding_data: Validated holding data from Pydantic model
+        
+    Returns:
+        The updated PortfolioHolding object
+    """
+    try:
+        holding = db.query(PortfolioHolding).filter(
+            PortfolioHolding.account_id == holding_data.account_id,
+            PortfolioHolding.asset_id == holding_data.asset_id
+        ).first()
+        
+        if not holding:
+            raise ValueError(f"Holding not found")
+            
+        holding.quantity = holding_data.quantity
+        holding.average_purchase_price = holding_data.average_purchase_price
+        
+        db.commit()
+        db.refresh(holding)
+        return holding
+    except Exception as e:
+        db.rollback()
+        raise e
+    
+    
 # ===============================================================================
 # Order operations
 # ===============================================================================
@@ -301,7 +372,9 @@ def create_order(db: Session, order_data: OrderCreate) -> Order:
             price=order_data.price,
             stop_price=order_data.stop_price,
             notes=order_data.notes,
-            order_status_id=new_status_id
+            order_status_id=new_status_id,
+            external_order_id=order_data.external_order_id,
+            filled_quantity=order_data.filled_quantity,
         )
         db.add(new_order)
         db.commit()
@@ -312,22 +385,38 @@ def create_order(db: Session, order_data: OrderCreate) -> Order:
         raise e
 
 
-def update_order_status(db: Session, order_id: int, status_code: str) -> Order:
-    """Update an order's status by status code."""
+def update_order(db: Session, order_id: int, order_data: OrderUpdate) -> Order:
+    """
+    Update an existing order's details.
+    
+    Args:
+        db: Database session
+        order_id: ID of the order to update
+        order_data: Validated order update data from Pydantic model
+        
+    Returns:
+        The updated Order object
+    """
     try:
         order = db.query(Order).get(order_id)
         if not order:
             raise ValueError(f"Order with ID {order_id} not found")
-            
-        status = get_order_status_by_code(db, status_code)
-        if not status:
-            raise ValueError(f"Order status with code {status_code} not found")
-            
-        order.order_status_id = status.id
         
-        # If the new status is 'filled', update executed_at timestamp
-        if status_code == OrderStatus.FILLED:
-            order.executed_at = datetime.now(timezone.utc)
+        # Update the order status if provided
+        if order_data.status:
+            new_status = get_order_status_by_code(db, order_data.status)
+            if new_status:
+                order.order_status_id = new_status.id
+        
+        # Update other fields if provided
+        if order_data.filled_quantity is not None:
+            order.filled_quantity = order_data.filled_quantity
+        if order_data.price is not None:
+            order.price = order_data.price
+        if order_data.stop_price is not None:
+            order.stop_price = order_data.stop_price
+        if order_data.notes is not None:
+            order.notes = order_data.notes
             
         db.commit()
         db.refresh(order)
@@ -337,8 +426,52 @@ def update_order_status(db: Session, order_id: int, status_code: str) -> Order:
         raise e
 
 
-def get_orders_by_status(db: Session, account_id: int, status_code: str = None) -> List[Order]:
-    """Get orders filtered by account and optionally by status."""
+def update_order_status(db: Session, order_id: int, status_code: str) -> Order:
+    """
+    Update an order's status.
+    
+    Args:
+        db: Database session
+        order_id: ID of the order to update
+        status_code: New status code to set
+        
+    Returns:
+        The updated Order object
+    """
+    try:
+        order = db.query(Order).get(order_id)
+        if not order:
+            raise ValueError(f"Order with ID {order_id} not found")
+        
+        # Update the order status
+        new_status = get_order_status_by_code(db, status_code)
+        if new_status:
+            order.order_status_id = new_status.id
+        else:
+            raise ValueError(f"Status code '{status_code}' not found")
+            
+        db.commit()
+        db.refresh(order)
+        return order
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
+def get_orders_by_status(db: Session, account_id: int, status_code: str = None, start_date: date = None, end_date: date = None) -> List[Order]:
+    """
+    Get orders filtered by account and optionally by status and date range.
+    
+    Args:
+        db: Database session
+        account_id: ID of the account
+        status_code: Status code to filter by (optional)
+        start_date: Start date for date range filtering (optional)
+        end_date: End date for date range filtering (optional)
+        
+    Returns:
+        List of Order objects
+    """
     try:
         query = db.query(Order).filter(Order.account_id == account_id)
         
@@ -349,6 +482,12 @@ def get_orders_by_status(db: Session, account_id: int, status_code: str = None) 
             joinedload(Order.order_status)
         )
         
+        # Apply date range filters if provided
+        if start_date:
+            query = query.filter(Order.placed_at >= start_date)
+        if end_date:
+            query = query.filter(Order.placed_at <= end_date)
+        
         # If status is 'all', return all orders
         if status_code and status_code != OrderStatus.ALL:
             status = get_order_status_by_code(db, status_code)
@@ -356,6 +495,34 @@ def get_orders_by_status(db: Session, account_id: int, status_code: str = None) 
                 query = query.filter(Order.order_status_id == status.id)
                 
         return query.order_by(desc(Order.placed_at)).all()
+    except Exception as e:
+        db.rollback()
+        raise e
+
+
+def get_orders_by_date_range(db: Session, account_id: int, start_date: date, end_date: date) -> List[Order]:
+    """
+    Get orders placed within a specific date range.
+    
+    Args:
+        db: Database session
+        account_id: ID of the account
+        start_date: Start date for date range filtering
+        end_date: End date for date range filtering
+        
+    Returns:
+        List of Order objects
+    """
+    try:
+        return db.query(Order).filter(
+            Order.account_id == account_id,
+            Order.placed_at >= start_date,
+            Order.placed_at <= end_date
+        ).options(
+            joinedload(Order.asset),
+            joinedload(Order.order_type),
+            joinedload(Order.order_status)
+        ).order_by(desc(Order.placed_at)).all()
     except Exception as e:
         db.rollback()
         raise e
@@ -425,6 +592,48 @@ def record_transaction(db: Session, transaction_data: TransactionCreate) -> Tran
         db.commit()
         db.refresh(new_transaction)
         return new_transaction
+    except Exception as e:
+        db.rollback()
+        raise e
+
+def record_transaction_from_order(db: Session, order: Order, commission: float = 0.0) -> Transaction:
+    """
+    Create a transaction record from an existing order.
+    
+    Args:
+        db: Database session
+        order: The Order object from the database
+        commission: Commission or fee for the transaction (default: 0.0)
+        
+    Returns:
+        The created Transaction object
+    """
+    try:
+        # Ensure the order has the filled quantity
+        if not order.filled_quantity:
+            raise ValueError("Cannot create transaction from an unfilled order")
+        
+        # Use the order's filled price if available, otherwise fall back to the order price
+        price = order.price
+        
+        # Calculate total amount
+        total_amount = order.filled_quantity * price + commission
+            
+        # Create transaction data
+        transaction_data = TransactionCreate(
+            order_id=order.id,
+            account_id=order.account_id,
+            asset_id=order.asset_id,
+            transaction_type=order.transaction_type,
+            quantity=order.filled_quantity,
+            price=price,
+            commission=commission,
+            total_amount=total_amount
+        )
+        
+        # Record the transaction
+        transaction = record_transaction(db, transaction_data)
+        return transaction
     except Exception as e:
         db.rollback()
         raise e

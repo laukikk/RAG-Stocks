@@ -9,8 +9,8 @@ from database.calls import (
     create_account, create_asset, record_asset_daily_price,
     get_asset_price_history, get_asset_performance,
     add_portfolio_holding, get_portfolio_holdings,
-    create_order, update_order_status, record_transaction,
-    get_orders_by_status, get_active_orders,
+    create_order, update_order, record_transaction,
+    get_orders_by_status, get_active_orders, get_orders_by_date_range,
     create_watchlist, add_watchlist_item,
     create_daily_portfolio_snapshot, create_intraday_portfolio_snapshot,
     get_account_type_by_code, get_all_account_types,
@@ -19,7 +19,7 @@ from database.calls import (
 )
 from database.models import (
     AssetBase, AssetCreate, AccountCreate, 
-    OrderCreate, TransactionCreate, PortfolioHoldingCreate,
+    OrderCreate, OrderUpdate, TransactionCreate, PortfolioHoldingCreate,
     WatchlistCreate, WatchlistItemCreate, AssetDailyPriceCreate,
     UserCreate, OrderStatus, TransactionType
 )
@@ -395,20 +395,32 @@ def create_order_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@orders_router.put("/{order_id}/status", summary="Update order status")
-def update_order_status_route(
+@orders_router.put("/{order_id}/update", summary="Update an existing order")
+def update_order_route(
     order_id: int, 
-    status_code: str, 
+    status: Optional[OrderStatus] = None, 
+    filled_quantity: Optional[int] = None, 
+    price: Optional[float] = None, 
+    stop_price: Optional[float] = None, 
+    notes: Optional[str] = None,
     db: Session = Depends(neon_client.get_db_session)
 ):
     """
-    Update the status of an existing order.
+    Update an existing order's details.
     """
     try:
-        updated_order = update_order_status(db, order_id, status_code)
+        # Create Pydantic model from parameters
+        order_data = OrderUpdate(
+            status=status,
+            filled_quantity=filled_quantity,
+            price=price,
+            stop_price=stop_price,
+            notes=notes
+        )
+        
+        # Pass to database function
+        updated_order = update_order(db, order_id, order_data)
         return updated_order
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -424,6 +436,22 @@ def get_orders_route(
     """
     try:
         orders = get_orders_by_status(db, account_id, status)
+        return orders
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@orders_router.get("/{account_id}/range", summary="Get orders by date range")
+def get_orders_by_date_range_route(
+    account_id: int, 
+    start_date: date, 
+    end_date: date, 
+    db: Session = Depends(neon_client.get_db_session)
+):
+    """
+    Get all orders for an account within a specific date range.
+    """
+    try:
+        orders = get_orders_by_date_range(db, account_id, start_date, end_date)
         return orders
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

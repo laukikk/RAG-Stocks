@@ -111,7 +111,7 @@ class Account(Base):
     margin_available = Column(DECIMAL(15, 2), default=0.00)
     created_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
     status = Column(Enum(AccountStatus, values_callable=lambda enum: [e.value for e in enum]), default=AccountStatus.ACTIVE)
-    external_account_id = Column(UUID, index=True)
+    external_account_id = Column(UUID, index=True, nullable=False)
     
     # Relationships
     user = relationship("User", back_populates="accounts")
@@ -137,7 +137,7 @@ class Asset(Base):
     industry = Column(String(50))
     is_active = Column(Boolean, default=True)
     added_at = Column(TIMESTAMP(timezone=True), default=lambda: datetime.now(timezone.utc))
-    external_asset_id = Column(UUID, index=True)
+    external_asset_id = Column(UUID, index=True, nullable=False)
     
     # Relationships
     holdings = relationship("PortfolioHolding", back_populates="asset")
@@ -175,7 +175,6 @@ class PortfolioHolding(Base):
     asset_id = Column(Integer, ForeignKey("assets.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False)
     average_purchase_price = Column(DECIMAL(15, 2), nullable=False)
-    external_position_id = Column(UUID, index=True)
     
     # Relationships
     account = relationship("Account", back_populates="holdings")
@@ -235,7 +234,7 @@ class Order(Base):
     executed_at = Column(TIMESTAMP(timezone=True))
     expires_at = Column(TIMESTAMP(timezone=True))
     notes = Column(Text)
-    external_order_id = Column(UUID, index=True)
+    external_order_id = Column(UUID, index=True, nullable=False)
     
     # Relationships
     account = relationship("Account", back_populates="orders")
@@ -412,7 +411,7 @@ class AccountBase(BaseModel):
     account_type_id: int
     account_number: Optional[str] = None
     currency: str = "USD"
-    external_account_id: Optional[PyUUID] = None
+    external_account_id: Optional[PyUUID]
 
 class AccountCreate(AccountBase):
     pass
@@ -435,7 +434,7 @@ class AssetBase(BaseModel):
     exchange: str
     sector: Optional[str] = None
     industry: Optional[str] = None
-    external_asset_id: Optional[PyUUID] = None
+    external_asset_id: Optional[PyUUID]
     
     def to_asset(self) -> Asset:
         return Asset(
@@ -481,7 +480,6 @@ class PortfolioHoldingBase(BaseModel):
     asset_id: int
     quantity: int
     average_purchase_price: float
-    external_position_id: Optional[PyUUID] = None
 
 class PortfolioHoldingCreate(PortfolioHoldingBase):
     pass
@@ -502,10 +500,17 @@ class OrderBase(BaseModel):
     price: Optional[float] = None
     stop_price: Optional[float] = None
     notes: Optional[str] = None
-    external_order_id: Optional[PyUUID] = None
+    external_order_id: Optional[PyUUID]
 
 class OrderCreate(OrderBase):
-    pass
+    filled_quantity: Optional[int] = None
+
+class OrderUpdate(BaseModel):
+    status: Optional[OrderStatus] = None
+    filled_quantity: Optional[int] = None
+    price: Optional[float] = None
+    stop_price: Optional[float] = None
+    notes: Optional[str] = None
 
 class OrderResponse(OrderBase):
     id: int

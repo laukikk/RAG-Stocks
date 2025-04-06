@@ -7,6 +7,7 @@ from routers.stock_data_routes import stock_data_router
 from routers.crypto_data_routes import crypto_data_router
 from routers.database_routes import database_router
 from routers.rag_routes import router as rag_router
+from routers.sync_routes import db_sync_router
 
 app = FastAPI(
     title="RAG-Stocks API",
@@ -26,6 +27,7 @@ app.include_router(trading_platform_router)
 app.include_router(stock_data_router)
 app.include_router(crypto_data_router)
 app.include_router(database_router)
+app.include_router(db_sync_router)
 app.include_router(rag_router, prefix="/rag", tags=["rag"])
 
 # CORS middleware to allow requests from the frontend (Next.js)

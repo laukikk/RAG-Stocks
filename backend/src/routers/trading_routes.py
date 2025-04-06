@@ -17,7 +17,8 @@ from alpaca.trading.requests import (
     GetOrderByIdRequest,
     ReplaceOrderRequest,
     ClosePositionRequest,
-    GetAssetsRequest
+    GetAssetsRequest,
+    QueryOrderStatus,
 )
 
 # Initialize Alpaca client (singleton)
@@ -186,7 +187,7 @@ def create_order_route(
 
 @orders_router.get("/", summary="Get Orders")
 def get_orders_route(
-    status: Optional[OrderStatus] = Query(None),
+    status: Optional[QueryOrderStatus] = Query(None),
     limit: int = Query(50),
     after: Optional[datetime] = Query(None),
     until: Optional[datetime] = Query(None),
